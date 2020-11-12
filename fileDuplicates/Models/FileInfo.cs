@@ -10,22 +10,29 @@ namespace fileDuplicates.Models
 {
     class FileInfo
     {
+        public String fullPath { get; }
         public String name { get; }
         public String parent { get; }
-        public String checksum { get; }
-
-        public FileInfo(System.IO.FileInfo file) {
-
-            name = file.Name;
-            parent = file.DirectoryName;
-            checksum = CalculateMD5(file.FullName);
+        public String checksum
+        {
+            get
+            {
+                return CalculateMD5();
+            }
         }
 
-        static String CalculateMD5(String filename)
+        public FileInfo(System.IO.FileInfo file) {
+            fullPath = file.FullName;
+            name = file.Name;
+            parent = file.DirectoryName;
+            //checksum = System.Threading.Tasks.Task.Run(() => CalculateMD5(file.FullName)).Result;
+        }
+
+        String CalculateMD5()
         {
             using (var md5 = MD5.Create())
             {
-                using (var stream = System.IO.File.OpenRead(filename))
+                using (var stream = System.IO.File.OpenRead(fullPath))
                 {
                     var hash = md5.ComputeHash(stream);
                     return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();

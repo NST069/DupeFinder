@@ -53,6 +53,24 @@ namespace fileDuplicates.Viewmodels
             }
         }
 
+        int _filesCount=1;
+        public int FilesCount {
+            get { return _filesCount; }
+            set {
+                _filesCount = value;
+                OnPropertyChanged(nameof(FilesCount));
+            }
+        }
+
+        int _progress;
+        public int Progress {
+            get { return _progress; }
+            set {
+                _progress = value;
+                OnPropertyChanged(nameof(Progress));
+            }
+        }
+
         public ICommand Open {
             get {
                 return new Models.DelegateCommand((obj)=> {
@@ -62,9 +80,6 @@ namespace fileDuplicates.Viewmodels
 
                         if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
                         {
-                            //string[] files = Directory.GetFiles(fbd.SelectedPath);
-
-                            //.Windows.Forms.MessageBox.Show("Files found: " + files.Length.ToString(), "Message");
                             Path = fbd.SelectedPath;
                         }
                     }
@@ -79,46 +94,64 @@ namespace fileDuplicates.Viewmodels
                 {
                     Files.Clear();
                     Res = "";
-                    String[] fileEntries = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
-                    foreach (String x in fileEntries)
-                    {
-                        Models.FileInfo file = await System.Threading.Tasks.Task.Run(() => new Models.FileInfo(new System.IO.FileInfo(x)));
-                        Files.Add(file);
-                        Res += file.checksum + '\n';
-                    }
-                    //var dupes = Files.GroupBy(x => new { x.checksum, x.name })
-                    //    .Where(x => x.Skip(1).Any());
-                    //if (dupes.Any())
-                    //{
-                    //    Res += "\n\n=====DUPES=====\n";
-                    //    foreach (var x in dupes)
-                    //    {
-                    //        Res += "checksum = " + x.Key.checksum + " name = " + x.Key.name + " has " + (x.Count() - 1) + " duplicates";
-                    //    }
-                    //}
-                    var duplicates = Files.GroupBy(s => s.checksum)
+                    FilesCount = 0;
+                    Progress = 0;
+                    await GetFiles(Path);
+                    var duplicatesByContent = Files.GroupBy(s => s.checksum)
                                                  .Where(g => g.Count() > 1)
                                                  .SelectMany(g => g);
-                    if (duplicates.Count() > 0)
+                    if (duplicatesByContent.Count() > 0)
                     {
                         Res += "\n=====Duplicates with same content: ";
-                        foreach (var x in duplicates.ToArray())
+                        foreach (var x in duplicatesByContent.ToArray())
                         {
                             Res += "\n" + x.parent + "\\" + x.name;
                         }
                     }
-                    duplicates = Files.GroupBy(s => s.name)
+                    var duplicatesByName = Files.GroupBy(s => s.name)
                                                  .Where(g => g.Count() > 1)
                                                  .SelectMany(g => g);
-                    if (duplicates.Count() > 0)
+                    if (duplicatesByName.Count() > 0)
                     {
                         Res += "\n=====Duplicates with same name: ";
-                        foreach (var x in duplicates.ToArray()) {
+                        foreach (var x in duplicatesByName.ToArray()) {
                             Res += "\n" + x.parent + "\\" + x.name;
                         }
                     }
                 });
             }
+        }
+
+        async Task<int> GetFiles(String directory) {
+            int filesInDir = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly).Count();
+            Res += "Folder: " + directory + "\tFiles: "+filesInDir+"\n";
+            FilesCount += filesInDir;
+            foreach (String x in Directory.GetFiles(directory)) {
+                System.Threading.ThreadPool.QueueUserWorkItem(async (obj) =>
+                {
+                    Models.FileInfo file = await System.Threading.Tasks.Task.Run(() => new Models.FileInfo(new System.IO.FileInfo(x)));
+                    Files.Add(file);
+                    Progress++;
+                    Res += "Progress: " + Progress + "/" + FilesCount + "\n";
+                });
+
+            }
+            foreach (String x in Directory.GetDirectories(directory)) {
+                try
+                {
+                    await GetFiles(x);
+                    
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    MessageBox.Show("Can\'t get access to " + x);
+                    
+                }
+                catch (Exception e) {
+                    MessageBox.Show(e.Message);
+                }
+            }
+            return 0;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

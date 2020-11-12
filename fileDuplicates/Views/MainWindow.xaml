@@ -13,6 +13,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="5*"/>
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
@@ -23,7 +24,8 @@
             <Button Grid.Column="0" Content="{Binding Path}" Command="{Binding Open}"/>
             <Button Grid.Column="1" Content="Run" Command="{Binding Submit}"/>
         </Grid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <ProgressBar Grid.Row="1" Value="{Binding Progress}" Maximum="{Binding FilesCount}"/>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <TextBlock Text="{Binding Res}"/>
         </ScrollViewer>
     </Grid>
